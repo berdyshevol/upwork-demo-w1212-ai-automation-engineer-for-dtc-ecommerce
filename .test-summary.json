@@ -1,0 +1,5 @@
+{
+  "total": 14,
+  "passing": 14,
+  "spec_files": ["tests/triage.spec.ts"]
+}
