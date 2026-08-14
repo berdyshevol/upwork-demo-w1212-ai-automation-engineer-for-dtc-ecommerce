@@ -1,5 +1,10 @@
 # OpsDesk — support triage & reply drafting
 
+## Live demo
+
+https://upwork-demo-w1212-ai-automation-eng.vercel.app
+
+
 A working demo of the highest-volume queue on a DTC ecommerce ops list: inbound
 customer email, triaged end to end. Ingest → classify → enrich with the order →
 draft in brand voice → hand anything doubtful to a human.
