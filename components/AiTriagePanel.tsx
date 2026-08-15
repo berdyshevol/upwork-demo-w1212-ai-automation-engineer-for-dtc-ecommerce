@@ -10,14 +10,20 @@ import {
   PROVIDER_LABEL,
   readByok,
   runAiTriage,
+  type AiTriage,
   type Byok,
   type TriagePayload,
 } from '@/lib/llm';
 
 /**
- * The AI path, gated on the visitor's own key. The provider call happens here, in the
+ * The AI path. With the visitor's own key the provider call happens here, in the
  * browser — the server route only supplies the deterministic baseline (order fields and
  * the current template) and never sees a key.
+ *
+ * With no key the drafting goes through /api/triage-shared instead, on the author's
+ * shared endpoint. That path is slower and queues, so it is never the one the copy
+ * pushes you toward — but a visitor who pastes nothing still sees a real draft rather
+ * than a disabled button.
  */
 export default function AiTriagePanel({ messageId }: { messageId: string }) {
   const router = useRouter();
@@ -37,10 +43,25 @@ export default function AiTriagePanel({ messageId }: { messageId: string }) {
   }, []);
 
   async function run() {
-    if (!byok) return;
     setBusy(true);
     setError(null);
     try {
+      if (!byok) {
+        // No key pasted: draft on the author's shared endpoint rather than
+        // leaving a dead button. Slow by nature — it queues — so the copy above
+        // says so and points at Settings for the instant path.
+        const shared = await fetch('/api/triage-shared', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ messageId }),
+        });
+        if (!shared.ok) throw new Error(`Shared drafting failed (${shared.status})`);
+        const { classification, draft } = (await shared.json()) as AiTriage;
+        await applyAiTriageAction(messageId, classification, draft);
+        router.refresh();
+        return;
+      }
+
       const response = await fetch('/api/triage', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -68,17 +89,17 @@ export default function AiTriagePanel({ messageId }: { messageId: string }) {
           <p className="mt-1 text-sm text-slate-600">
             {byok
               ? `Re-run classification and drafting on ${PROVIDER_LABEL[byok.provider]} ${byok.model}, called from this browser with your key.`
-              : 'Running on the deterministic keyword classifier and template merge.'}
+              : "No key set: drafting runs on the author's shared key. It queues, so it takes a while — add your own key in Settings for instant replies."}
           </p>
         </div>
         <button
           type="button"
           data-testid="run-ai"
           onClick={run}
-          disabled={!byok || busy}
+          disabled={busy}
           className="btn-secondary"
         >
-          {busy ? 'Running…' : 'Re-run with my model'}
+          {busy ? (byok ? 'Running…' : 'Drafting on the shared key…') : byok ? 'Re-run with my model' : 'Draft on the shared key'}
         </button>
       </div>
 

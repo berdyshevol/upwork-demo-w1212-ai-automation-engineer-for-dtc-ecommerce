@@ -206,7 +206,11 @@ test('FR10 — with no API key the app runs in offline mode: badge visible, AI a
   await expect(page.getByTestId('byok-hint')).toContainText(
     /Choose a provider and paste your API key in Settings to enable live AI/i,
   );
-  await expect(page.getByTestId('run-ai')).toBeDisabled();
+  // No longer disabled: with no key the button drafts on the author's shared
+  // endpoint instead of doing nothing. Here DEMO_LLM_URL is unset, which is the
+  // fallback-off state, so pressing it would return the deterministic draft —
+  // the point of the assertion is that the visitor is never shown a dead control.
+  await expect(page.getByTestId('run-ai')).toBeEnabled();
   // The deterministic path still produced a full classification and draft.
   await expect(page.getByTestId('intent-label')).toHaveText('Where is my order');
   await expect(page.getByTestId('draft-editor')).toHaveValue(/1Z999AA10123456784/);
